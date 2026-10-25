@@ -1,0 +1,79 @@
+% Informacja o wykorzystaniu narzędzi AI — wzór z załącznika nr 2A (wariant 1), etap 1
+% Kompilacja: pdflatex informacja-2a.tex
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[polish]{babel}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=black, urlcolor=blue}
+\setlist{nosep, leftmargin=1.5em}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em}
+
+\begin{document}
+
+\begin{flushright}\small
+Załącznik nr 2A do Zasad korzystania z narzędzi AI\\
+przez studentów i doktorantów Politechniki Opolskiej
+\end{flushright}
+
+\begin{center}
+{\large\bfseries INFORMACJA O WYKORZYSTANIU NARZĘDZI AI}\\[0.4em]
+Wariant 1 --- korzystano z AI w zakresie wymagającym ujawnienia
+\end{center}
+
+\textbf{Przedmiot:} Rozpoznawanie wzorców (studia II stopnia, 2026/2027, grupa 2).\\
+\textbf{Materiał:} etap 1 projektu --- prezentacja tematu 06 \emph{Obciążenie i zmienność oceny przez
+walidację krzyżową} (slajdy, protokół badania, kod próby uruchomienia w repozytorium
+\url{https://github.com/FylyppS/rozpoznawanie-wzorcow}).\\
+\textbf{Poziom korzystania z AI} ustalony w kontrakcie przedmiotu: poziom 2 --- AI jako wsparcie pracy.\\
+\textbf{Autorzy:} Dariusz Salzburg (103931), Filip Sejud (103928).
+
+\medskip
+W przygotowaniu \textbf{materiałów etapu 1 projektu (slajdów, protokołu badania i kodu próby uruchomienia)}
+korzystaliśmy z następujących narzędzi AI:
+
+\textbf{Nazwa narzędzia lub narzędzi:}\\
+Claude (Anthropic) --- asystent generatywny w środowisku programistycznym Claude Code.
+
+\textbf{Cel i zakres wykorzystania:}
+\begin{itemize}
+  \item pomoc w analizie publikacji R.~Kohaviego (IJCAI 1995): streszczenie metodologii i wyników oraz
+    objaśnienie pojęć obciążenia i wariancji estymatora, które następnie opracowaliśmy na slajdach;
+  \item wsparcie w przygotowaniu szkicu protokołu badania: propozycja generatora danych o znanym błędzie
+    Bayesa, schematu ziaren losowych, liczby powtórzeń i wyliczenia budżetu obliczeniowego;
+    decyzje o przyjęciu tych ustaleń oraz hipotezy badawcze są nasze;
+  \item przygotowanie fragmentów implementacji w języku Python (pakiet \texttt{cvbias}, skrypty
+    \texttt{run\_experiment.py} i \texttt{make\_figures.py}) oraz skryptu składającego slajdy;
+  \item redakcja i skład tekstów: slajdów, protokołu badania (\LaTeX) i niniejszej informacji.
+\end{itemize}
+
+\textbf{Elementy przygotowane lub zmienione z wykorzystaniem AI:}
+\begin{itemize}
+  \item kod źródłowy w repozytorium (generator danych, przebieg eksperymentu, podsumowania, rysunki,
+    skrypt budujący slajdy) --- szkic wygenerowany przez AI, przez nas przeczytany, uruchomiony
+    i sprawdzony (m.in.\ ręczne przeliczenie średniej błędów foldów i błędu Bayesa);
+  \item treść i układ slajdów oraz tekst protokołu badania --- redakcja z pomocą AI na podstawie
+    karty tematu, kontraktu i publikacji; zakres, hipotezy i plan eksperymentu zatwierdziliśmy sami;
+  \item wyniki próby uruchomienia (\texttt{results/pilot}) pochodzą z faktycznie wykonanych obliczeń
+    na naszym komputerze; żadne wartości liczbowe nie zostały wygenerowane przez AI.
+\end{itemize}
+
+Wyniki uzyskane przy użyciu AI zostały przez nas sprawdzone, a za ostateczną treść i poprawność
+przygotowanego materiału ponosimy odpowiedzialność.
+
+\vspace{2.2em}
+\noindent
+\begin{tabular}{@{}p{0.48\textwidth}p{0.48\textwidth}@{}}
+\dotfill & \dotfill \\
+Dariusz Salzburg & Filip Sejud \\
+\end{tabular}
+
+\vspace{1em}
+{\small Opole, 29 października 2026 r.}
+
+\end{document}

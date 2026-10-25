@@ -1,0 +1,8 @@
+.vscode/
+# artefakty budowania i środowisko
+build/
+.venv/
+__pycache__/
+*.pyc
+~$*.pptx
+.~lock.*#

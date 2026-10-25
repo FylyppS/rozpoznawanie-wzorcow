@@ -1,0 +1,69 @@
+{
+  "timestamp": "2026-10-25T16:34:15+0100",
+  "elapsed_seconds": 0.16,
+  "fits_performed": 174,
+  "fits_planned_full_series": {
+    "reproduction": 1080,
+    "own_experiment": 660,
+    "train_size_reference": 180,
+    "total": 1920,
+    "budget": 2500
+  },
+  "n_reps": 3,
+  "parts": [
+    "reproduction",
+    "own"
+  ],
+  "protocol": {
+    "n_train": 200,
+    "n_test": 10000,
+    "n_reps_full": 30,
+    "folds": [
+      2,
+      5,
+      10
+    ],
+    "folds_own": 5,
+    "seeds": {
+      "balanced": {
+        "train": 1000,
+        "split": 2000,
+        "test": 90001
+      },
+      "imbalanced": {
+        "train": 3000,
+        "split": 4000,
+        "test": 90002
+      }
+    },
+    "generators": {
+      "balanced": {
+        "n_features": 10,
+        "n_informative": 5,
+        "delta": 2.0,
+        "prior_1": 0.5
+      },
+      "imbalanced": {
+        "n_features": 10,
+        "n_informative": 5,
+        "delta": 2.0,
+        "prior_1": 0.1
+      }
+    },
+    "bayes_error": {
+      "balanced": 0.15865525393145707,
+      "imbalanced": 0.07006068585853907
+    },
+    "models": {
+      "gnb": "GaussianNB()",
+      "cart": "DecisionTreeClassifier(random_state=0)"
+    }
+  },
+  "versions": {
+    "python": "3.14.8",
+    "numpy": "2.4.4",
+    "scipy": "1.17.1",
+    "scikit-learn": "1.8.0",
+    "platform": "Linux-7.2.9-ogc3.1.fc44.x86_64-x86_64-with-glibc2.43"
+  }
+}

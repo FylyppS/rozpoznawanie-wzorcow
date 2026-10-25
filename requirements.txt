@@ -1,0 +1,9 @@
+# Środowisko badania (Python 3.14.8). Wersje utrwalone w etapie 1 — zob. results/*/meta.json.
+numpy==2.4.4
+scipy==1.17.1
+scikit-learn==1.8.0
+pandas==2.3.3
+matplotlib==3.10.8
+
+# Tylko do budowania slajdów (etap1/build_slides.py); nie jest potrzebne do eksperymentu.
+python-pptx==1.0.2
