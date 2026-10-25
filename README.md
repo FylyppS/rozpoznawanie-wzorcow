@@ -37,6 +37,7 @@ cvbias/            pakiet z kodem badania
 run_experiment.py  uruchomienie badania (CLI)
 make_figures.py    rysunki do slajdów i raportu
 results/pilot/     surowe wyniki małej próby uruchomienia (3 zbiory) z etapu 1
+docs/sciagawka-obrona.md  ściągawka do nauki i obrony: teoria, publikacja, nasze decyzje, przykłady, pytania
 etap1/             materiały etapu 1: slajdy, protokół, informacja o AI (wzór 2A), rysunki
 requirements.txt   wersje zależności
 ```
