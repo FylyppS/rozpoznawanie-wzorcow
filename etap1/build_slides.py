@@ -6,12 +6,10 @@
 Z pełnej prezentacji-źródła zostaje tylko wzorzec z układami (zapis do etap1/formatka-wi.pptx,
 bez slajdów i multimediów); na nim składane są slajdy. Treść pochodzi z utrwalonego protokołu
 (cvbias/protocol.py), z surowych wyników próby uruchomienia (results/pilot) i z rysunków
-(etap1/figures). Wzory są renderowane z notacji TeX (matplotlib mathtext) do PNG.
+(etap1/figures). Wzory są renderowane z notacji TeX (matplotlib mathtext) do PNG i wyśrodkowane.
 
-Zakres slajdów = wymagania etapu 1 z karty tematu i kontraktu (ok. 10 minut):
-publikacja i problem, pytanie i hipotezy, obciążenie i zmienność + wzór CV, przykład ręczny,
-generator / powtórzenia / ocena referencyjna, plan odtworzenia, eksperyment własny,
-wykonalność i kontrola poprawności, ograniczenia + źródła + informacja 2A.
+Zakres slajdów = wymagania etapu 1 z karty tematu i kontraktu (ok. 10 minut). Do każdego slajdu
+dołączone są notatki prelegenta (co powiedzieć, co policzyć na głos, na jakie pytanie się przygotować).
 """
 
 from __future__ import annotations
@@ -27,6 +25,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 from lxml import etree  # noqa: E402
+from PIL import Image  # noqa: E402
 from pptx import Presentation  # noqa: E402
 from pptx.dml.color import RGBColor  # noqa: E402
 from pptx.enum.shapes import MSO_SHAPE  # noqa: E402
@@ -179,8 +178,20 @@ def formula_png(tex: str, path: Path, fontsize: int = 30, color: str = "#0b0b0b"
     return path
 
 
-def add_formula(slide, tex: str, x, y, h, build_dir: Path, name: str, fontsize: int = 30):
-    path = formula_png(tex, build_dir / f"{name}.png", fontsize)
+def add_formula(slide, tex: str, x, y, h, build_dir: Path, name: str, fontsize: int = 30,
+                center_in: float | None = None, color: str = "#0b0b0b", max_w: float | None = None):
+    """Wstawia wzór jako obraz o wysokości ``h`` cala. Z ``center_in`` = szerokość pola (w calach)
+    obraz jest wyśrodkowany poziomo w polu zaczynającym się w ``x``; ``max_w`` (domyślnie = ``center_in``)
+    ogranicza szerokość — za szeroki wzór jest proporcjonalnie pomniejszany."""
+    path = formula_png(tex, build_dir / f"{name}.png", fontsize, color)
+    with Image.open(path) as img:
+        ratio = img.width / img.height
+    w = h * ratio
+    limit = max_w if max_w is not None else center_in
+    if limit is not None and w > limit:
+        w, h = limit, limit / ratio
+    if center_in is not None:
+        x = x + (center_in - w) / 2
     return slide.shapes.add_picture(str(path), Inches(x), Inches(y), height=Inches(h))
 
 
@@ -207,8 +218,9 @@ def num(v: float, nd: int = 3) -> str:
     return f"{v:.{nd}f}".replace(".", ",")
 
 
-def signed(v: float, nd: int = 3) -> str:
-    return ("+" if v >= 0 else "−") + num(abs(v), nd)
+def tex_num(v: float, nd: int = 3) -> str:
+    """Liczba do wzoru TeX z przecinkiem dziesiętnym (bez odstępu po przecinku)."""
+    return f"{v:.{nd}f}".replace(".", "{,}")
 
 
 # ---------------------------------------------------------------- slajdy
@@ -253,205 +265,305 @@ def build(template: Path, out: Path, results: Path, figures: Path, build_dir: Pa
         r.text = text
         r.font.name, r.font.size, r.font.color.rgb = FONT, Pt(size), color
         set_bullet(p, 0, False)
-    add_notes(s, "Temat 06 z karty tematów. Odtwarzamy pytanie z pracy Kohaviego (1995) w adaptacji: własny generator danych "
-                 "i modele ze scikit-learn. Ok. 10 minut.")
+    add_notes(s, (
+        "CO POWIEDZIEĆ (30 s): Temat 06 z obszaru „metodologia eksperymentów”. Publikacja: Kohavi, IJCAI 1995 — "
+        "jedna z najczęściej cytowanych prac o walidacji krzyżowej. Pytanie projektu: jak liczba foldów k wpływa na "
+        "obciążenie i zmienność błędu szacowanego przez CV i co zmienia stratyfikacja przy klasie rzadkiej. "
+        "Plan prezentacji: publikacja → pytanie i hipotezy → teoria z przykładem ręcznym → plan badania → wykonalność."
+    ))
 
     # 2. Publikacja i problem ----------------------------------------------------------------
     s = new_slide("Publikacja i problem")
-    add_card(s, L, TOP, 6.6, 4.2)
-    add_text(s, L + 0.2, TOP + 0.15, 6.2, 3.9, [
-        {"text": "Kohavi (IJCAI 1995)", "bold": True, "size": 17, "color": NAVY, "space_after": 8},
-        {"text": "Pytanie: jak dobrze walidacja krzyżowa (CV) i bootstrap szacują trafność klasyfikatora?", "bullet": True, "size": 15},
-        {"text": "C4.5 i Naive‑Bayes na 7 zbiorach UCI, 50 powtórzeń; „prawdziwa” trafność z holdoutu na reszcie zbioru", "bullet": True, "size": 15},
-        {"text": "CV zaniża trafność (pesymizm) — najbardziej dla k = 2 i 5; dla k = 10–20 prawie bez obciążenia", "bullet": True, "size": 15},
-        {"text": "Największa wariancja dla k = 2; stratyfikacja zmniejsza obciążenie i wariancję", "bullet": True, "size": 15},
+    add_card(s, L, TOP, 6.0, 3.9)
+    add_text(s, L + 0.2, TOP + 0.15, 5.6, 3.6, [
+        {"text": "Kohavi (IJCAI 1995)", "bold": True, "size": 17, "color": NAVY, "space_after": 10},
+        {"text": "Jak dobrze CV i bootstrap szacują trafność klasyfikatora?", "bullet": True, "size": 15, "space_after": 8},
+        {"text": "C4.5 i Naive‑Bayes, 7 zbiorów UCI, 50 powtórzeń", "bullet": True, "size": 15, "space_after": 8},
+        {"text": "CV pesymistyczna dla k = 2 i 5; k = 10–20 prawie bez obciążenia", "bullet": True, "size": 15, "space_after": 8},
+        {"text": "Największa wariancja dla k = 2; stratyfikacja pomaga", "bullet": True, "size": 15, "space_after": 8},
         {"text": "Zalecenie: 10‑krotna stratyfikowana CV", "bullet": True, "size": 15, "bold": True},
     ])
-    add_text(s, L + 6.9, TOP, 4.6, 0.4, [{"text": "Co odtwarzamy, a co zmieniamy", "bold": True, "size": 15, "color": NAVY}])
+    add_text(s, L + 6.3, TOP, 5.2, 0.4, [{"text": "Odtwarzamy: Rys. 1 i Rys. 3 (obciążenie i rozrzut vs k)", "bold": True, "size": 14, "color": NAVY}])
     rows = [
-        ["", "Kohavi", "My"],
-        ["Pytanie", "obciążenie i wariancja CV vs k", "to samo"],
+        ["", "Kohavi", "My (adaptacja)"],
         ["Dane", "7 zbiorów UCI", "generator syntetyczny"],
         ["Modele", "C4.5, Naive‑Bayes", "CART, GaussianNB"],
-        ["Odniesienie", "holdout, 50 powt.", "test N = 10 000, 30 powt."],
+        ["Odniesienie", "holdout, 50 powtórzeń", "test N = 10 000, 30 powtórzeń"],
         ["k", "2, 5, 10, 20, LOO, bootstrap", "2, 5, 10"],
-        ["Stratyfikacja", "klasy zbalansowane", "klasa rzadka 10 %"],
+        ["Bez zmian", "te same foldy dla obu modeli; wiele niezależnych powtórzeń", "tak samo"],
     ]
-    add_table(s, rows, L + 6.9, TOP + 0.45, 4.6, [1.15, 1.9, 1.55], row_h=0.42, size=11.5)
-    add_notes(s, "Kohavi mierzył trafność; my mierzymy błąd = 1 − trafność. Zamiana danych i modeli to adaptacja — cel "
-                 "metodologiczny bez zmian.")
+    add_table(s, rows, L + 6.3, TOP + 0.45, 5.2, [1.2, 2.2, 1.8], row_h=0.5, size=11.5)
+    add_notes(s, (
+        "CO POWIEDZIEĆ (1,5 min): Kohavi porównał metody szacowania trafności klasyfikatora na małej próbce: holdout, "
+        "k-krotną walidację krzyżową dla różnych k, leave-one-out i bootstrap. Zrobił to na dwóch różnych algorytmach "
+        "(drzewo C4.5 i Naive-Bayes) i siedmiu zbiorach UCI, po 50 powtórzeń; „prawdziwą” trafność liczył holdoutem na "
+        "reszcie zbioru. Wyniki: CV zaniża trafność (jest pesymistyczna), najbardziej dla 2 i 5 foldów; przy 10–20 "
+        "foldach obciążenie prawie znika. Wariancja jest największa przy 2 foldach. Stratyfikacja zmniejsza i obciążenie, "
+        "i wariancję. Bootstrap ma małą wariancję, ale na niektórych zbiorach ogromne obciążenie. Zalecenie: 10-krotna "
+        "stratyfikowana CV.\n"
+        "FRAGMENT DO ODTWORZENIA: Rysunek 1 (obciążenie CV w funkcji k) i Rysunek 3 (odchylenie standardowe w funkcji k) "
+        "— dla naszych dwóch modeli i k = 2, 5, 10. Bootstrapu, leave-k-out i k = 20 nie odtwarzamy — karta tematu "
+        "tego nie wymaga.\n"
+        "ADAPTACJA (powiedzieć wprost): dane i modele są inne — narzuca je karta tematu. Zachowujemy cel i schemat "
+        "badania: te same foldy dla obu modeli, wiele niezależnych powtórzeń, punkt odniesienia niezależny od CV.\n"
+        "MOŻLIWE PYTANIE: „czym różni się Wasz punkt odniesienia od Kohaviego?” — on nie znał prawdy, więc szacował ją "
+        "holdoutem na reszcie zbioru; my generujemy dane, więc mamy duży niezależny test 10 000 obiektów."
+    ))
 
     # 3. Pytanie i hipotezy ------------------------------------------------------------------
     s = new_slide("Pytanie badawcze i hipotezy")
-    add_text(s, L, TOP, W, 0.75, [
+    add_card(s, L, TOP, W, 1.1, CARD_NAVY)
+    add_text(s, L + 0.2, TOP + 0.08, W - 0.4, 0.95, [
         {"text": "Jak liczba części walidacji krzyżowej wpływa na obciążenie i zmienność szacowanego błędu oraz co zmienia stratyfikacja przy niezbalansowanych klasach?", "size": 17, "bold": True, "color": NAVY},
+    ], anchor="middle")
+    add_text(s, L, TOP + 1.35, W, 3.0, [
+        {"runs": [("H1  ", {"bold": True, "color": NAVY}), ("Obciążenie pesymistyczne (CV zawyża błąd), największe dla k = 2, bliskie zera dla k = 10.", {})], "size": 17, "space_after": 14},
+        {"runs": [("H1′ ", {"bold": True, "color": NAVY}), ("Zmienność największa dla k = 2.", {})], "size": 17, "space_after": 14},
+        {"runs": [("H1″ ", {"bold": True, "color": NAVY}), ("Oba efekty silniejsze dla CART (niestabilny) niż dla GaussianNB (stabilny).", {})], "size": 17, "space_after": 14},
+        {"runs": [("H2  ", {"bold": True, "color": NAVY}), ("Stratyfikacja przy klasie rzadkiej: mniejsza zmienność, brak foldów bez klasy rzadkiej, obciążenie podobne.", {})], "size": 17},
     ])
-    cards = [
-        ("P1 · liczba foldów k = 2, 5, 10", [
-            "H1: ê_CV zawyża błąd (pesymizm) najbardziej dla k = 2, bo model w foldzie uczy się tylko na n/2 obiektów; dla k = 10 obciążenie bliskie zera.",
-            "H1′: zmienność ê_CV jest największa dla k = 2.",
-            "H1″: efekty silniejsze dla CART (model niestabilny) niż dla GaussianNB (stabilny).",
-        ]),
-        ("P2 · stratyfikacja przy klasie rzadkiej (10 %)", [
-            "H2: stratyfikowane 5‑foldowe CV ma mniejszą zmienność niż zwykłe i nie daje foldów bez klasy rzadkiej.",
-            "H2′: obciążenie podobne — rozmiar treningu w foldzie jest taki sam.",
-        ]),
-    ]
-    for i, (head, bullets) in enumerate(cards):
-        x = L + i * 5.9
-        add_card(s, x, TOP + 1.0, 5.6, 3.2, CARD if i == 0 else CARD_NAVY)
-        items = [{"text": head, "bold": True, "size": 16, "color": NAVY, "space_after": 8}]
-        items += [{"text": b, "size": 14.5, "bullet": True, "space_after": 8} for b in bullets]
-        add_text(s, x + 0.2, TOP + 1.12, 5.2, 3.0, items)
-    add_notes(s, "Hipotezy wynikają z krzywej uczenia (mniej danych → większy błąd) i z niestabilności modelu. "
-                 "Wynik negatywny nie obniża oceny, jeśli procedura jest poprawna.")
+    add_notes(s, (
+        "CO POWIEDZIEĆ (1 min): Przeczytać pytanie z karty tematu. Potem hipotezy z uzasadnieniem:\n"
+        "H1 — model w foldzie uczy się na n(k−1)/k obiektach, czyli przy k = 2 tylko na 100 z 200. Mniej danych = "
+        "większy błąd (krzywa uczenia), więc CV zawyża błąd; przy k = 10 trening ma 180 obiektów i różnica prawie znika.\n"
+        "H1′ — przy k = 2 model jest „chwiejny”: inne 100 obiektów daje wyraźnie inny model, więc estymata skacze.\n"
+        "H1″ — Kohavi pokazuje (Propozycja 1), że dla modelu stabilnego CV jest nieobciążona i jej wariancja nie zależy od k. "
+        "GaussianNB uczy się tylko średnich i wariancji cech — jest stabilny; drzewo CART bez przycinania zmienia kształt "
+        "przy każdej zmianie danych — jest niestabilne. Więc efekty powinny być widoczne głównie dla CART.\n"
+        "H2 — stratyfikacja nie zmienia rozmiaru treningu (ta sama krzywa uczenia → obciążenie podobne), ale usuwa losowe "
+        "wahania proporcji klas między foldami → mniejsza zmienność; i z definicji żaden fold nie zostaje bez klasy rzadkiej.\n"
+        "PODKREŚLIĆ: wynik negatywny nie obniża oceny (kontrakt §6) — hipotezy to przewidywania, nie cel."
+    ))
 
     # 4. Obciążenie i zmienność ------------------------------------------------------------------
     s = new_slide("Obciążenie i zmienność estymatora błędu")
-    add_card(s, L, TOP, W, 1.15)
-    add_text(s, L + 0.2, TOP + 0.08, 3.5, 0.4, [{"text": "Błąd prawdziwy modelu C", "bold": True, "size": 15, "color": NAVY}])
-    add_formula(s, r"e(C) = P\left(C(X) \neq Y\right)", L + 0.25, TOP + 0.5, 0.42, build_dir, "f_true", 26)
-    add_text(s, L + 4.3, TOP + 0.05, W - 4.5, 1.05, [
-        {"text": "Prawdopodobieństwo pomyłki na nowym obiekcie z tego samego rozkładu. Nieznane — przybliżamy je błędem e_test modelu na dużym, niezależnym teście T (N = 10 000).", "size": 14, "color": INK2},
+    add_card(s, L, TOP, W, 1.2)
+    add_text(s, L + 0.2, TOP + 0.08, 5.0, 0.4, [{"text": "Błąd prawdziwy modelu C (generalizacja)", "bold": True, "size": 15, "color": NAVY}])
+    add_formula(s, r"e(C) = P\left(C(X) \neq Y\right)", L + 0.2, TOP + 0.55, 0.45, build_dir, "f_true", 26, center_in=5.0)
+    add_text(s, L + 5.6, TOP + 0.05, W - 5.8, 1.1, [
+        {"text": "Nieznany — przybliżamy go przez błąd eₜₑₛₜ: model nauczony na całym D (200 obiektów), zmierzony na niezależnym teście T (10 000 obiektów).", "size": 14, "color": INK2},
     ], anchor="middle")
-    add_card(s, L, TOP + 1.3, W, 1.4, CARD_NAVY)
-    add_text(s, L + 0.2, TOP + 1.38, 5.0, 0.4, [{"text": "Estymator ê_CV: obciążenie i zmienność", "bold": True, "size": 15, "color": NAVY}])
-    add_formula(s, r"\mathrm{bias} = \mathrm{E}[\hat e_{CV}] - e_{test}, \qquad \mathrm{sd} = \sqrt{\mathrm{Var}[\hat e_{CV}]}",
-                L + 0.25, TOP + 1.82, 0.5, build_dir, "f_bias_sd", 26)
-    add_text(s, L + 6.6, TOP + 1.35, W - 6.8, 1.3, [
-        {"text": "Obciążenie: błąd systematyczny — dodatnie = CV zawyża błąd (pesymizm). Zmienność: rozrzut ê_CV między powtórzeniami. Jedno nie wynika z drugiego.", "size": 14, "color": INK2},
+    add_card(s, L, TOP + 1.35, W, 1.75, CARD_NAVY)
+    add_text(s, L + 0.2, TOP + 1.43, 6.0, 0.4, [{"text": "Estymator CV i jego dwa rodzaje błędu", "bold": True, "size": 15, "color": NAVY}])
+    add_formula(s, r"\mathrm{bias} = \mathrm{E}\left[\hat e_{CV} - e_{test}\right], \qquad \mathrm{sd}_{\Delta} = \mathrm{sd}\left(\hat e_{CV} - e_{test}\right)",
+                L, TOP + 1.9, 0.5, build_dir, "f_bias_sd", 26, center_in=W)
+    add_text(s, L + 0.2, TOP + 2.5, W - 0.4, 0.5, [
+        {"text": "bias > 0 = pesymizm (CV zawyża błąd)      sd_Δ = odchylenie standardowe różnicy między powtórzeniami = zmienność", "size": 13, "color": INK2, "align": "center"},
     ], anchor="middle")
-    add_text(s, L, TOP + 2.85, W, 1.3, [
-        {"runs": [("Skąd pesymizm: ", {"bold": True}), ("model w foldzie uczy się na n(k−1)/k obiektów, nie na n (k = 2: 100, k = 5: 160, k = 10: 180 z 200). Mniej danych → większy błąd.", {})], "size": 14, "bullet": True, "space_after": 5},
-        {"runs": [("Skąd zmienność: ", {"bold": True}), ("losowy zbiór treningowy i losowy podział na foldy.", {})], "size": 14, "bullet": True, "space_after": 5},
-        {"runs": [("Jak liczymy: ", {"bold": True}), ("30 niezależnych zbiorów D_r → 30 różnic ê_CV,r − e_test,r; ich średnia = obciążenie, odchylenie standardowe = zmienność.", {})], "size": 14, "bullet": True},
+    add_text(s, L, TOP + 3.3, W, 1.1, [
+        {"runs": [("Pesymizm: ", {"bold": True}), ("model w foldzie uczy się na n(k−1)/k obiektach — k = 2: 100, k = 5: 160, k = 10: 180 z 200.", {})], "size": 15, "bullet": True, "space_after": 7},
+        {"runs": [("Powtórzenie: ", {"bold": True}), ("niezależny zbiór Dᵣ, r = 1…30 → 30 różnic; ich średnia = bias, odchylenie standardowe = zmienność.", {})], "size": 15, "bullet": True, "space_after": 7},
+        {"runs": [("Niska zmienność ≠ małe obciążenie.", {"bold": True})], "size": 15, "bullet": True},
     ])
-    add_notes(s, "Pytanie kontrolne: czy niższa wariancja oznacza mniejsze obciążenie? Nie — to dwie różne składowe błędu "
-                 "estymatora (MSE = bias² + wariancja). U Kohaviego bootstrap .632 ma niską wariancję i duże obciążenie.")
+    add_notes(s, (
+        "CO POWIEDZIEĆ (1,5 min): Generalizacja: błąd prawdziwy e(C) to prawdopodobieństwo pomyłki na NOWYM obiekcie "
+        "z tego samego rozkładu. Nie da się go policzyć dokładnie — w praktyce nie mamy nowych danych. My mamy generator, "
+        "więc tworzymy duży niezależny test T (10 000 obiektów) i błąd na nim, e_test, traktujemy jako prawdę (jego własna "
+        "niepewność to ok. 0,4 punktu procentowego).\n"
+        "Obciążenie estymatora = wartość oczekiwana różnicy między estymatą ê_CV a prawdą e_test; E[·] to średnia po "
+        "nieskończenie wielu powtórzeniach — my przybliżamy ją średnią z 30. Dodatnie obciążenie = CV zawyża błąd = "
+        "pesymizm (Kohavi mówi o zaniżonej trafności — to samo). Zmienność = odchylenie standardowe tej różnicy między "
+        "powtórzeniami, czyli „jak bardzo wynik skacze”. Dokładnie tak definiuje to karta tematu.\n"
+        "Trening/walidacja: w CV model widzi tylko część danych — przy k = 2 połowę. Mniej danych → większy błąd → "
+        "ê_CV mierzy błąd gorszego modelu niż ten na całych 200 → pesymizm. Im większe k, tym większy trening w pojedynczym "
+        "dopasowaniu i tym mniejszy pesymizm.\n"
+        "Powtórzenie badania to CAŁY niezależny zbiór D_r (nie fold) — bo foldy nie są niezależne (następny slajd).\n"
+        "PYTANIE KONTROLNE 2: „czy niższa wariancja oznacza mniejsze obciążenie?” — NIE, to dwie osobne rzeczy "
+        "(strzelec: można strzelać powtarzalnie i zawsze obok). Przykład Kohaviego: bootstrap .632 ma małą wariancję "
+        "i obciążenie do 9,8 p.p."
+    ))
 
     # 5. Wzór CV i symbole -------------------------------------------------------------------
     s = new_slide("k‑krotna walidacja krzyżowa: wzór i symbole")
     add_formula(s, r"\hat e_{CV} = \frac{1}{k}\sum_{j=1}^{k} e_j, \qquad e_j = \frac{m_j}{|D_j|}",
-                L + 0.3, TOP, 0.85, build_dir, "f_cv", 30)
+                L, TOP, 0.85, build_dir, "f_cv", 30, center_in=W)
     symbols = [
-        ["Symbol", "Znaczenie"],
-        ["D = D_1 ∪ … ∪ D_k", "zbiór treningowy (n = 200) podzielony losowo na k równych, rozłącznych części (foldów)"],
-        ["C_−j", "model nauczony na wszystkich foldach poza j‑tym, czyli na n(k−1)/k obiektach"],
-        ["m_j, e_j", "liczba pomyłek modelu C_−j na odłożonym foldzie D_j i ich odsetek e_j = m_j / |D_j|"],
-        ["ê_CV", "średnia błędów foldów; przy równych foldach = wszystkie pomyłki / n"],
-        ["e_test", "odsetek pomyłek modelu nauczonego na całym D, zmierzony na teście T (N = 10 000)"],
+        (r"D = D_1 \cup \dots \cup D_k", "zbiór treningowy (n = 200) podzielony losowo na k równych, rozłącznych foldów"),
+        (r"C_{-j}", "model nauczony bez foldu j (na n(k−1)/k obiektach), sprawdzany na odłożonym foldzie Dⱼ"),
+        (r"m_j,\ e_j", "liczba pomyłek modelu C₋ⱼ na foldzie Dⱼ i ich odsetek (pomyłki / rozmiar foldu)"),
+        (r"\hat e_{CV}", "średnia błędów foldów; przy równych foldach = wszystkie pomyłki / n"),
+        (r"e_{test}", "błąd modelu nauczonego na całym D, zmierzony na teście T (N = 10 000)"),
     ]
-    add_table(s, symbols, L, TOP + 1.05, W, [2.3, W - 2.3], row_h=0.4, size=13)
-    add_card(s, L, TOP + 3.6, W, 0.75, CARD_NAVY)
-    add_text(s, L + 0.2, TOP + 3.62, W - 0.4, 0.7, [
-        {"runs": [("Foldy nie są niezależnymi pomiarami: ", {"bold": True}), ("zbiory uczące C_−1 i C_−2 mają wspólne (k−2)/(k−1) obiektów (k = 10: 8 z 9). Dlatego powtórzeniem badania jest cały niezależny zbiór D_r, a nie fold.", {})], "size": 14, "color": INK},
-    ], anchor="middle")
-    add_notes(s, "Każdy obiekt jest dokładnie raz w foldzie testowym. k foldów = k dopasowań modelu. "
-                 "Pytanie kontrolne 1: dziesięć foldów nie daje dziesięciu niezależnych pomiarów, bo zbiory uczące nakładają się w 8/9.")
+    row_y, row_h = TOP + 1.05, 0.5
+    for i, (tex, desc) in enumerate(symbols):
+        y = row_y + i * row_h
+        add_card(s, L, y, W, row_h - 0.06, CARD if i % 2 == 0 else CARD_NAVY)
+        add_formula(s, tex, L + 0.15, y + 0.09, 0.3, build_dir, f"sym_{i}", 22, center_in=2.4)
+        add_text(s, L + 2.7, y, W - 2.9, row_h - 0.06, [{"text": desc, "size": 14, "color": INK}], anchor="middle")
+    add_text(s, L, row_y + len(symbols) * row_h + 0.1, W, 0.6, [
+        {"runs": [("Foldy nie są niezależne: ", {"bold": True}), ("zbiory uczące C₋₁ i C₋₂ mają wspólne (k−2)/(k−1) obiektów (k = 10: 8 z 9).", {})], "size": 14.5},
+    ])
+    add_notes(s, (
+        "CO POWIEDZIEĆ (1,5 min): Przeczytać wzór symbol po symbolu. Zbiór D dzielimy losowo na k foldów. Dla każdego "
+        "foldu j uczymy model na pozostałych k−1 foldach (C_−j, „minus j” = bez j-tego) i sprawdzamy na odłożonym D_j: "
+        "m_j pomyłek na |D_j| obiektów daje e_j. Estymata ê_CV to zwykła średnia z k błędów foldów. Daszek = oszacowanie, "
+        "nie prawda. Każdy obiekt jest dokładnie raz w foldzie testowym, więc przy równych foldach średnia = (wszystkie "
+        "pomyłki)/n — to wzór (4) Kohaviego; u nas 200 dzieli się przez 2, 5 i 10, więc obie wersje są identyczne.\n"
+        "Koszt: k dopasowań modelu na jedno ê_CV.\n"
+        "PYTANIE KONTROLNE 1: „dlaczego 10 foldów nie daje 10 niezależnych pomiarów?” — zbiory uczące sąsiednich foldów "
+        "pokrywają się w 8 z 9 (ogólnie (k−2)/(k−1)); to prawie te same modele, więc e_j są skorelowane. Odchylenie "
+        "między foldami podzielone przez pierwiastek z k zaniża niepewność. Skrajny przykład Kohaviego: iris + model "
+        "„zawsze klasa większościowa” + leave-one-out → każdy fold 0 % trafności, rozrzut 0, a prawda 33 %. Dlatego "
+        "jednostką powtórzenia jest cały niezależny zbiór D_r."
+    ))
 
     # 6. Przykład ręczny ---------------------------------------------------------------------
     ex = folds[(folds.rep == 1) & (folds.model == "gnb") & (folds.k == 5) & (folds.cv_type == "kfold")].sort_values("fold")
     ex_sum = summary[(summary.rep == 1) & (summary.model == "gnb") & (summary.k == 5)].iloc[0]
     s = new_slide("Przykład ręczny: średnia błędów foldów (D₁, GaussianNB, k = 5)")
-    rows = [["Fold j", "Obiektów w foldzie", "Pomyłek", "e_j = pomyłki / obiekty"]]
+    rows = [["Fold j", "Obiektów w foldzie", "Pomyłek mⱼ", "eⱼ = mⱼ / 40"]]
     for _, row in ex.iterrows():
         rows.append([str(int(row.fold)), str(int(row.n_test)), str(int(row.n_errors)), f"{int(row.n_errors)} / {int(row.n_test)} = {num(row.error)}"])
     total_err, total_n = int(ex.n_errors.sum()), int(ex.n_test.sum())
     rows.append(["Razem", str(total_n), str(total_err), f"{total_err} / {total_n} = {num(total_err / total_n)}"])
     add_table(s, rows, L, TOP, 6.4, [1.0, 1.8, 1.3, 2.3], row_h=0.42, size=14, align=["c", "c", "c", "c"], bold_last=True)
-    terms = " + ".join(num(e) for e in ex.error)
+    terms = " + ".join(tex_num(e) for e in ex.error)
     add_card(s, L + 6.7, TOP, 4.8, 2.95, CARD_NAVY)
-    add_text(s, L + 6.9, TOP + 0.12, 4.4, 2.8, [
-        {"text": "Rachunek", "bold": True, "size": 16, "color": NAVY, "space_after": 8},
-        {"runs": [("ê_CV = (", {}), (terms, {}), (f") / 5 = {num(ex_sum.e_cv)}", {"bold": True})], "size": 14, "space_after": 10},
-        {"runs": [("e_test = ", {}), (num(ex_sum.e_test, 4), {"bold": True}), (" — GaussianNB nauczony na całym D₁ (200 obiektów), sprawdzony na T (10 000 obiektów)", {})], "size": 14, "space_after": 10},
-        {"runs": [("ê_CV − e_test = ", {}), (signed(ex_sum["diff"], 4), {"bold": True}), ("  (tu: optymizm)", {"color": INK2})], "size": 14},
+    add_text(s, L + 6.9, TOP + 0.1, 4.4, 0.4, [{"text": "Rachunek", "bold": True, "size": 16, "color": NAVY}])
+    add_formula(s, rf"\hat e_{{CV}} = \frac{{1}}{{5}}\,({terms})", L + 6.85, TOP + 0.5, 0.45, build_dir, "f_ex1", 22, center_in=4.5)
+    add_formula(s, rf"= {tex_num(ex.error.sum())} / 5 = \mathbf{{{tex_num(ex_sum.e_cv)}}}", L + 6.85, TOP + 1.0, 0.34, build_dir, "f_ex1b", 22, center_in=4.5)
+    add_formula(s, rf"e_{{test}} = \mathbf{{{tex_num(ex_sum.e_test, 4)}}}", L + 6.85, TOP + 1.55, 0.34, build_dir, "f_ex2", 22, center_in=4.5)
+    add_text(s, L + 6.9, TOP + 1.92, 4.4, 0.3, [{"text": "(model na całym D₁, test 10 000 obiektów)", "size": 12, "color": INK2, "align": "center"}])
+    add_formula(s, rf"\hat e_{{CV}} - e_{{test}} = \mathbf{{{tex_num(ex_sum['diff'], 4)}}}", L + 6.85, TOP + 2.35, 0.38, build_dir, "f_ex3", 22, center_in=4.5)
+    add_text(s, L, TOP + 3.1, W, 1.0, [
+        {"text": "Jedna różnica to przypadek — obciążenie i zmienność liczymy z 30 takich różnic (po jednej na zbiór Dᵣ).", "size": 15, "color": INK2, "bullet": True},
+        {"text": f"Liczby z próby uruchomienia (results/pilot, {meta['timestamp'][:10]}).", "size": 15, "color": INK2, "bullet": True},
     ])
-    add_text(s, L, TOP + 3.1, W, 1.1, [
-        {"text": "Jedna różnica nic nie mówi — zależy od losowego D₁ i losowego podziału. Dopiero średnia i rozrzut 30 takich różnic (po jednej na zbiór D_r) dają obciążenie i zmienność.", "size": 14.5, "color": INK2, "bullet": True, "space_after": 6},
-        {"text": f"Liczby z próby uruchomienia (results/pilot, {meta['timestamp'][:10]}). Błąd Bayesa generatora: 15,9 % — niżej zejść się nie da.", "size": 14.5, "color": INK2, "bullet": True},
-    ])
-    add_notes(s, "Do weryfikacji ustnej: policzyć średnią pięciu ułamków i pokazać, że 29/200 daje to samo. Ujemna różnica w jednym "
-                 "zbiorze nie przeczy pesymistycznemu obciążeniu — obciążenie to średnia po wielu zbiorach.")
+    add_notes(s, (
+        "CO POWIEDZIEĆ (1,5 min) — POLICZYĆ NA GŁOS: zbiór D_1 z naszego generatora, 200 obiektów, GaussianNB, 5 foldów "
+        "po 40. Pomyłki na foldach: 7, 3, 7, 8, 4. Błędy: 7/40 = 0,175; 3/40 = 0,075; 7/40 = 0,175; 8/40 = 0,200; "
+        "4/40 = 0,100. Suma 0,725, podzielić przez 5: ê_CV = 0,145. Kontrola drugim sposobem: 29 pomyłek / 200 obiektów "
+        "= 0,145 — to samo, bo foldy są równe.\n"
+        "Punkt odniesienia: ten sam GaussianNB nauczony na całych 200 obiektach, sprawdzony na teście T: 1754 pomyłki "
+        "na 10 000 → e_test = 0,1754. Różnica = 0,145 − 0,1754 = −0,030: w tym konkretnym zbiorze CV ZANIŻYŁA błąd "
+        "o 3 p.p. — czyli optymizm, wbrew hipotezie. To nie przeczy H1: obciążenie to ŚREDNIA z wielu zbiorów, a "
+        "pojedynczy błąd foldu z 40 obiektów ma rozrzut ok. 6 p.p. Dopiero 30 różnic (po jednej na niezależny zbiór) "
+        "da średnią (obciążenie) i odchylenie standardowe (zmienność).\n"
+        "JEŚLI ZAPYTAJĄ O SD: na 3 liczbach, np. różnice 0,01; 0,03; 0,05 → średnia 0,03, odchylenia −0,02/0/+0,02, "
+        "kwadraty 0,0004/0/0,0004, suma 0,0008 / (3−1) = 0,0004, pierwiastek 0,02."
+    ))
 
     # 7. Generator, powtórzenia, ocena referencyjna --------------------------------------------
     s = new_slide("Generator danych, powtórzenia i ocena referencyjna")
-    add_formula(s, r"X \mid y \sim \mathcal{N}(\mu_y, I_{10}),\quad \mu_1 = -\mu_0 = \frac{\delta}{2}\,u,\quad u = \frac{1}{\sqrt{5}}(1,1,1,1,1,0,0,0,0,0),\quad \delta = 2",
-                L + 1.3, TOP - 0.05, 0.5, build_dir, "f_gen", 28)
-    img_h = 2.6
+    add_formula(s, r"X \mid y \sim \mathcal{N}(\mu_y, I_{10}),\quad \mu_1 = -\mu_0 = \frac{\delta}{2}\,u,\quad u = \frac{1}{\sqrt{5}}(1,1,1,1,1,0,0,0,0,0),\quad \delta = 2,\quad y \sim \mathrm{Bernoulli}(\pi_1)",
+                L, TOP - 0.05, 0.5, build_dir, "f_gen", 28, center_in=W)
+    img_h = 2.7
     img_w = img_h * 12.0 / 4.2    # proporcje rysunku z make_figures.py
-    s.shapes.add_picture(str(figures / "generator.png"), Inches(L + (W - img_w) / 2), Inches(TOP + 0.5), height=Inches(img_h))
-    add_text(s, L, TOP + 0.5 + img_h + 0.08, W, 1.1, [
-        {"runs": [("Generator: ", {"bold": True}), (f"dwie klasy normalne, 5 cech informacyjnych + 5 szumu; błąd Bayesa Φ(−δ/2) = {pct(gen.bayes_error())} (π₁ = 0,5), {pct(gen_imb.bayes_error())} dla klasy rzadkiej (π₁ = 0,1).", {})], "size": 14, "bullet": True, "space_after": 5},
-        {"runs": [("Powtórzenia: ", {"bold": True}), ("R = 30 niezależnych zbiorów D_r po n = 200 obiektów (ziarno 1000 + r).", {})], "size": 14, "bullet": True, "space_after": 5},
-        {"runs": [("Ocena referencyjna: ", {"bold": True}), ("jeden zbiór testowy T, N = 10 000, osobne ziarno — służy tylko do oceny estymatora.", {})], "size": 14, "bullet": True},
+    s.shapes.add_picture(str(figures / "generator.png"), Inches(L + (W - img_w) / 2), Inches(TOP + 0.55), height=Inches(img_h))
+    add_text(s, L, TOP + 0.55 + img_h + 0.1, W, 1.0, [
+        {"runs": [("Generator: ", {"bold": True}), (f"dwie klasy normalne, 5 cech informacyjnych + 5 szumu; błąd Bayesa {pct(gen.bayes_error())} (π₁ = 0,5), {pct(gen_imb.bayes_error())} (π₁ = 0,1).", {})], "size": 14.5, "bullet": True, "space_after": 5},
+        {"runs": [("Powtórzenia: ", {"bold": True}), ("R = 30 zbiorów Dᵣ po n = 200.   ", {}), ("Ocena referencyjna: ", {"bold": True}), ("jeden test T, N = 10 000, osobne ziarno, tylko do oceny.", {})], "size": 14.5, "bullet": True},
     ])
-    add_notes(s, "Parametry generatora ustalone a priori (znany błąd Bayesa), nie według testu. GaussianNB jest tu dobrze "
-                 "wyspecyfikowany (stabilny), CART musi przybliżać granicę ukośną (niestabilny). Zmiana δ: większe δ → mniejszy błąd.")
+    add_notes(s, (
+        "CO POWIEDZIEĆ (1,5 min): Karta tematu każe ustalić generator, liczbę powtórzeń i ocenę referencyjną.\n"
+        "GENERATOR: każdy obiekt ma 10 cech i klasę y. Najpierw losujemy klasę (Bernoulli: π₁ = 0,5 w odtworzeniu, 0,1 "
+        "w eksperymencie własnym), potem 10 cech z rozkładu normalnego o środku zależnym od klasy. Środki μ₀ i μ₁ leżą "
+        "symetrycznie w odległości δ = 2 wzdłuż kierunku u: pierwsze 5 cech różni klasy (informacyjne), ostatnie 5 to "
+        "czysty szum. Rysunek: po lewej 200 wylosowanych punktów na dwóch cechach — klasy się mieszają; po prawej oba "
+        "„dzwony” po rzucie na kierunek u. Zacieniowane pola = błąd Bayesa, czyli błąd najlepszego możliwego klasyfikatora: "
+        "Φ(−δ/2) = Φ(−1) = 15,9 %. Przy klasie rzadkiej granica przesuwa się w stronę klasy rzadkiej (próg ln 9/δ ≈ 1,10) "
+        "i błąd Bayesa to 7,0 % — ale „zawsze klasa 0” ma 10 %, dlatego w eksperymencie własnym mierzymy też czułość.\n"
+        "DLACZEGO TAKI: znamy błąd Bayesa, więc wiemy, jak daleko od ideału są modele. GaussianNB zakłada dokładnie ten "
+        "rozkład (niezależne cechy normalne) → stabilny; CART tnie równolegle do osi, a granica jest ukośna → musi ją "
+        "schodkować, przeucza się → niestabilny. To odpowiednik pary Naive-Bayes / C4.5 u Kohaviego.\n"
+        "POWTÓRZENIA: 30 niezależnych zbiorów po 200 (z karty), ziarno 1000 + r. OCENA REFERENCYJNA: jeden test T, "
+        "10 000 obiektów, osobne ziarno; służy WYŁĄCZNIE do oceny — nic według niego nie dobieramy (pytanie kontrolne 3). "
+        "Parametry generatora ustaliliśmy z teorii (błąd Bayesa ok. 16 %), zanim cokolwiek policzyliśmy.\n"
+        "ZMIANA PARAMETRU (gdyby pytali): większe δ → mniejszy błąd Bayesa, płaska krzywa uczenia, mniejszy pesymizm; "
+        "więcej cech szumowych → większy błąd i pesymizm, zwłaszcza dla CART."
+    ))
 
     # 8. Plan odtworzenia (schemat) ---------------------------------------------------------
     s = new_slide("Plan odtworzenia: estymata CV kontra duży test")
     bx_h = 0.85
     row1_y, row2_y = TOP, TOP + 1.4
 
-    def box(x, y, w, h, head, body, fill=CARD):
+    def box(x, y, w, h, head, body, fill=CARD, head_tex=None):
         add_card(s, x, y, w, h, fill)
-        add_text(s, x + 0.12, y + 0.06, w - 0.24, h - 0.1, [
-            {"text": head, "bold": True, "size": 13, "color": NAVY, "space_after": 2},
-            {"text": body, "size": 11.5, "color": INK2},
-        ])
+        if head_tex:
+            add_formula(s, head_tex, x + 0.12, y + 0.08, 0.28, build_dir, f"box_{head_tex[:6]}_{int(x*10)}", 20, color="#1f3a5f")
+            add_text(s, x + 0.12, y + 0.42, w - 0.24, h - 0.46, [{"text": body, "size": 11.5, "color": INK2}])
+        else:
+            add_text(s, x + 0.12, y + 0.06, w - 0.24, h - 0.1, [
+                {"text": head, "bold": True, "size": 13, "color": NAVY, "space_after": 2},
+                {"text": body, "size": 11.5, "color": INK2},
+            ])
 
-    box(L, row1_y, 2.2, bx_h, "Generator", "ziarno 1000 + r dla D_r; ziarno 90001 dla T")
+    box(L, row1_y, 2.2, bx_h, "Generator", "ziarno 1000 + r dla Dᵣ; 90001 dla T")
     add_arrow(s, L + 2.25, row1_y + 0.28, 0.35, 0.3)
-    box(L + 2.65, row1_y, 2.3, bx_h, "D_r, r = 1…30", "n = 200 obiektów, klasy 50/50", CARD_NAVY)
+    box(L + 2.65, row1_y, 2.3, bx_h, None, "n = 200, klasy 50/50", CARD_NAVY, head_tex=r"D_r,\ r = 1,\dots,30")
     add_arrow(s, L + 5.0, row1_y + 0.28, 0.35, 0.3)
     box(L + 5.4, row1_y, 3.1, bx_h, "CV, k ∈ {2, 5, 10}", "KFold(shuffle, ziarno 2000 + r); te same podziały dla obu modeli")
     add_arrow(s, L + 8.55, row1_y + 0.28, 0.35, 0.3)
-    box(L + 8.95, row1_y, 2.55, bx_h, "ê_CV,r,k", "średnia błędów k foldów", CARD_NAVY)
+    box(L + 8.95, row1_y, 2.55, bx_h, None, "średnia błędów k foldów", CARD_NAVY, head_tex=r"\hat e_{CV,r,k}")
     add_arrow(s, L + 3.65, row1_y + bx_h + 0.04, 0.3, 0.46, "down")
-    box(L + 2.65, row2_y, 2.3, bx_h, "Model na całym D_r", "jedno dopasowanie, 200 obiektów")
+    box(L + 2.65, row2_y, 2.3, bx_h, "Model na całym Dᵣ", "jedno dopasowanie, 200 obiektów")
     add_arrow(s, L + 5.0, row2_y + 0.28, 0.35, 0.3)
-    box(L + 5.4, row2_y, 3.1, bx_h, "Test T", "N = 10 000, ten sam generator; tylko do oceny")
+    box(L + 5.4, row2_y, 3.1, bx_h, "Test T", "N = 10 000; tylko do oceny")
     add_arrow(s, L + 8.55, row2_y + 0.28, 0.35, 0.3)
-    box(L + 8.95, row2_y, 2.55, bx_h, "e_test,r", "odsetek pomyłek na T", CARD_NAVY)
+    box(L + 8.95, row2_y, 2.55, bx_h, None, "odsetek pomyłek na T", CARD_NAVY, head_tex=r"e_{test,r}")
     add_arrow(s, L + 10.1, row2_y + bx_h + 0.05, 0.3, 0.38, "down")
     add_card(s, L, row2_y + bx_h + 0.48, W, 0.8, CARD_NAVY)
-    add_text(s, L + 0.2, row2_y + bx_h + 0.5, W - 0.4, 0.76, [
-        {"runs": [("Δ_r = ê_CV,r − e_test,r", {"bold": True}), ("   →   dla każdego k i modelu 30 wartości Δ: średnia = obciążenie, odchylenie standardowe = zmienność", {})], "size": 14},
+    add_formula(s, r"\Delta_r = \hat e_{CV,r} - e_{test,r}", L + 0.25, row2_y + bx_h + 0.64, 0.42, build_dir, "f_delta", 24)
+    add_text(s, L + 4.2, row2_y + bx_h + 0.5, W - 4.4, 0.76, [
+        {"text": "→ 30 wartości dla każdego k i modelu: średnia = obciążenie, odchylenie standardowe = zmienność", "size": 14.5},
     ], anchor="middle")
-    add_text(s, L, row2_y + bx_h + 1.4, W, 0.8, [
-        {"runs": [("Modele: ", {"bold": True}), ("GaussianNB() i CART = DecisionTreeClassifier(random_state=0), parametry domyślne scikit‑learn 1.8.0. ", {}),
-                  ("Metryka: ", {"bold": True}), ("odsetek pomyłek. ", {}), ("Ziarna, rozmiary i k utrwalone w ", {}), ("cvbias/protocol.py", {"bold": True}), (".", {})], "size": 14, "color": INK2},
+    add_text(s, L, row2_y + bx_h + 1.45, W, 0.6, [
+        {"runs": [("Modele: ", {"bold": True}), ("GaussianNB, CART (DecisionTreeClassifier, domyślne).   ", {}), ("Metryka: ", {"bold": True}), ("odsetek pomyłek.   ", {}), ("Utrwalone w: ", {"bold": True}), ("cvbias/protocol.py", {})], "size": 14, "color": INK2},
     ])
-    add_notes(s, "Czego nie wolno wybierać według dużego testu: parametrów modeli, generatora ani wariantu CV — T służy tylko do oceny. "
-                 "Wskazanie w kodzie: experiment.run_series.")
+    add_notes(s, (
+        "CO POWIEDZIEĆ (1 min) — przejść po strzałkach: generator tworzy 30 niezależnych zbiorów D_r po 200 obiektów "
+        "(ziarno 1000 + r) i jeden test T z osobnego ziarna. Dla każdego zbioru i każdego z dwóch modeli: górna ścieżka — "
+        "CV z k = 2, 5, 10 na tym samym zbiorze i z tymi samymi podziałami dla obu modeli (jak u Kohaviego: ziarno "
+        "podziału zależy tylko od r) → trzy estymaty ê_CV; dolna ścieżka — model na całym D_r sprawdzony na T → e_test. "
+        "Różnica Δ = ê_CV − e_test; dla każdego k i modelu mamy 30 niezależnych Δ → średnia to obciążenie, odchylenie "
+        "standardowe to zmienność (dokładnie wielkości z karty tematu).\n"
+        "Wszystko utrwalone w cvbias/protocol.py przed badaniem: rozmiary, ziarna, k, modele, metryka — karta: „przed "
+        "końcowym badaniem utrwal podziały danych, parametry, metryki i losowania”.\n"
+        "Koszt: na zbiór i model 2 + 5 + 10 dopasowań w CV + 1 na całości = 18; razem 30 · 2 · 18 = 1080.\n"
+        "GDZIE W KODZIE (gdyby prosili): experiment.run_series — generate(T) raz przed pętlą; pętla po r; "
+        "fit_and_predict na całym D_r → e_test; make_splitter(…, seeds['split'] + r) → te same podziały; "
+        "cross_validate → błędy foldów."
+    ))
 
     # 9. Eksperyment własny ----------------------------------------------------------------
     s = new_slide("Eksperyment własny: stratyfikacja przy klasie rzadkiej (≈ 10 %)")
     add_card(s, L, TOP, 5.6, 4.3)
     add_text(s, L + 0.2, TOP + 0.15, 5.2, 4.1, [
-        {"text": "Plan", "bold": True, "size": 16, "color": NAVY, "space_after": 8},
-        {"text": "Ten sam generator z π₁ = 0,1: ok. 20 obiektów klasy rzadkiej na 200; osobne 30 zbiorów D_r i osobny test T′ (N = 10 000).", "size": 14.5, "bullet": True, "space_after": 8},
-        {"text": "Na tym samym D_r: KFold(5) i StratifiedKFold(5) z tym samym ziarnem — różni się tylko przydział obiektów do foldów.", "size": 14.5, "bullet": True, "space_after": 8},
-        {"text": "Miary: odsetek pomyłek, czułość klasy rzadkiej, liczba foldów bez klasy rzadkiej.", "size": 14.5, "bullet": True, "space_after": 8},
-        {"text": "Fold bez klasy rzadkiej → czułość nieokreślona: zapisujemy jako brak wyniku z powodem.", "size": 14.5, "bullet": True, "bold": True},
+        {"text": "Plan", "bold": True, "size": 16, "color": NAVY, "space_after": 10},
+        {"text": "Generator z π₁ = 0,1 → ok. 20 obiektów klasy rzadkiej na 200; 30 zbiorów, osobny test T′.", "size": 15, "bullet": True, "space_after": 10},
+        {"text": "Na tym samym Dᵣ: KFold(5) i StratifiedKFold(5), to samo ziarno.", "size": 15, "bullet": True, "space_after": 10},
+        {"text": "Miary: odsetek pomyłek, czułość klasy rzadkiej, liczba foldów bez klasy rzadkiej.", "size": 15, "bullet": True, "space_after": 10},
+        {"text": "Fold bez klasy rzadkiej → czułość nieokreślona → zapis jako brak wyniku z powodem.", "size": 15, "bullet": True, "bold": True},
     ])
     own1 = own_folds[(own_folds.rep == 1) & (own_folds.model == "gnb")]
     kf = own1[own1.cv_type == "kfold"].sort_values("fold")
     st = own1[own1.cv_type == "stratified"].sort_values("fold")
-    rows = [["Fold", "KFold: klasa rzadka w foldzie", "Stratified: klasa rzadka w foldzie"]]
+    rows = [["Fold", "KFold: klasa rzadka", "Stratified: klasa rzadka"]]
     for (_, a), (_, b) in zip(kf.iterrows(), st.iterrows()):
         rows.append([str(int(a.fold)), str(int(a.n_test_class1)), str(int(b.n_test_class1))])
     n_rare_d1 = int(own1.n_train_class1.iloc[0] + own1.n_test_class1.iloc[0])
-    add_text(s, L + 5.9, TOP, 5.6, 0.5, [{"text": f"Próba uruchomienia, D₁ ({n_rare_d1} obiektów klasy rzadkiej na 200), foldy po 40", "size": 13, "color": INK2}])
-    add_table(s, rows, L + 5.9, TOP + 0.55, 5.6, [0.8, 2.4, 2.4], row_h=0.4, size=13, align=["c", "c", "c"])
+    add_text(s, L + 5.9, TOP, 5.6, 0.5, [{"text": f"Próba: D₁ ({n_rare_d1} obiektów klasy rzadkiej na 200), foldy po 40", "size": 13, "color": INK2}])
+    add_table(s, rows, L + 5.9, TOP + 0.5, 5.6, [0.8, 2.4, 2.4], row_h=0.42, size=14, align=["c", "c", "c"])
     n_missing = int(own_folds[own_folds.cv_type == "kfold"].missing_class_test.sum())
     n_missing_s = int(own_folds[own_folds.cv_type == "stratified"].missing_class_test.sum())
-    add_text(s, L + 5.9, TOP + 3.05, 5.6, 1.2, [
-        {"text": f"Już w 3 zbiorach próby: zwykły KFold dał fold bez klasy rzadkiej ({n_missing} raz), stratyfikowany — {n_missing_s} razy.", "size": 13.5, "color": INK2, "bullet": True},
+    add_text(s, L + 5.9, TOP + 3.1, 5.6, 1.1, [
+        {"text": f"W 3 zbiorach próby: foldy bez klasy rzadkiej — KFold {n_missing}, Stratified {n_missing_s}.", "size": 14, "color": INK2, "bullet": True},
     ])
-    add_notes(s, "Stratyfikacja nie zmienia rozmiaru treningu, więc obciążenie podobne; usuwa losowość udziału klas między foldami, "
-                 "więc zmniejsza zmienność. Czułość dodajemy, bo przy 10 % klasy rzadkiej błąd 0/1 jest zdominowany przez klasę większościową.")
+    add_notes(s, (
+        "CO POWIEDZIEĆ (1 min): Karta: udział klasy rzadkiej ok. 10 %, porównanie zwykłej i stratyfikowanej 5-foldowej "
+        "CV NA TYCH SAMYCH PRÓBKACH. Stratyfikacja = foldy mają proporcje klas takie jak cały zbiór (StratifiedKFold losuje "
+        "osobno w każdej klasie). Bierzemy ten sam zbiór D_r i dzielimy go dwoma sposobami z tym samym ziarnem — różni się "
+        "tylko przydział do foldów.\n"
+        "Tabela z próby: w D_1 jest 24 obiekty klasy rzadkiej; zwykły KFold rozrzucił je 2/5/9/6/2, stratyfikowany 4/5/5/5/5. "
+        "W zbiorze D_3 (14 rzadkich) zwykły podział dał fold bez ani jednego obiektu klasy rzadkiej — wtedy czułość to 0/0, "
+        "nieokreślona. Karta każe takie przypadki zapisywać: w CSV jest flaga i powód; nie wstawiamy zera, nie pomijamy "
+        "po cichu, a liczba takich foldów jest jedną z miar.\n"
+        "Dlaczego czułość: przy 10 % klasy rzadkiej model „zawsze 0” ma tylko 10 % błędu — odsetek pomyłek nie pokazuje, "
+        "czy klasa rzadka jest w ogóle wykrywana.\n"
+        "Oczekiwanie (H2): obciążenie podobne (ten sam rozmiar treningu w foldzie), zmienność mniejsza (znika losowość "
+        "proporcji klas między foldami) — zgodne z obserwacją Kohaviego, że stratyfikacja jest „jednolicie lepsza”."
+    ))
 
     # 10. Wykonalność i kontrola poprawności ------------------------------------------------
     s = new_slide("Wykonalność: próba uruchomienia i kontrola poprawności")
@@ -468,62 +580,69 @@ def build(template: Path, out: Path, results: Path, figures: Path, build_dir: Pa
             {"text": label, "size": 12, "color": INK2, "align": "center", "space_after": 0},
             {"text": sub, "size": 12, "color": MUTED, "align": "center", "space_after": 0},
         ])
-    add_text(s, L, TOP + 1.6, 5.6, 2.7, [
-        {"text": "Środowisko i uruchomienie", "bold": True, "size": 15, "color": NAVY, "space_after": 5},
-        {"text": f"Python {meta['versions']['python']}, numpy {meta['versions']['numpy']}, scikit‑learn {meta['versions']['scikit-learn']}", "size": 14, "bullet": True, "space_after": 5},
-        {"text": "python run_experiment.py --reps 3 --out results/pilot", "size": 13, "bullet": True, "color": INK2, "space_after": 5},
-        {"text": "Zapisujemy: błąd i skład klas każdego foldu (CSV), podsumowania, meta.json z wersjami, ziarnami i liczbą dopasowań", "size": 14, "bullet": True, "space_after": 5},
-        {"text": "Kod i wyniki: github.com/FylyppS/rozpoznawanie-wzorcow", "size": 14, "bullet": True},
+    add_text(s, L, TOP + 1.65, 5.6, 2.6, [
+        {"text": "Środowisko", "bold": True, "size": 15, "color": NAVY, "space_after": 6},
+        {"text": f"Python {meta['versions']['python']}, scikit‑learn {meta['versions']['scikit-learn']}", "size": 15, "bullet": True, "space_after": 6},
+        {"text": "Zapisujemy błąd i skład klas każdego foldu, podsumowania, meta.json (wersje, ziarna, liczba dopasowań)", "size": 15, "bullet": True, "space_after": 6},
+        {"text": "github.com/FylyppS/rozpoznawanie-wzorcow", "size": 15, "bullet": True},
     ])
-    add_text(s, L + 5.9, TOP + 1.6, 5.6, 2.7, [
-        {"text": "Kontrola poprawności", "bold": True, "size": 15, "color": NAVY, "space_after": 5},
-        {"text": "Duży test tylko do oceny estymatora — nie dobieramy według niego parametrów modeli ani generatora", "size": 14, "bullet": True, "space_after": 5},
-        {"text": "Te same zbiory D_r i te same podziały dla wszystkich wariantów CV i obu modeli", "size": 14, "bullet": True, "space_after": 5},
-        {"text": "Ziarna, rozmiary, k, metryki utrwalone przed badaniem (cvbias/protocol.py)", "size": 14, "bullet": True, "space_after": 5},
-        {"text": "Brak przecieku: model w foldzie widzi tylko D ∖ D_j; T ma osobne ziarno", "size": 14, "bullet": True},
+    add_text(s, L + 5.9, TOP + 1.65, 5.6, 2.6, [
+        {"text": "Kontrola poprawności", "bold": True, "size": 15, "color": NAVY, "space_after": 6},
+        {"text": "Duży test tylko do oceny — nic według niego nie dobieramy", "size": 15, "bullet": True, "space_after": 6},
+        {"text": "Te same zbiory i podziały dla wszystkich wariantów CV i obu modeli", "size": 15, "bullet": True, "space_after": 6},
+        {"text": "Ziarna, rozmiary, k, metryki utrwalone przed badaniem", "size": 15, "bullet": True, "space_after": 6},
+        {"text": "Brak przecieku: model w foldzie widzi tylko D ∖ Dⱼ", "size": 15, "bullet": True},
     ])
-    add_notes(s, "Mała próba potwierdza działający generator, kod i budżet. Pełna seria to sekundy — ryzykiem nie jest obliczenie, "
-                 "lecz poprawność protokołu.")
+    add_notes(s, (
+        "CO POWIEDZIEĆ (1 min): Kontrakt wymaga na etapie 1 „małej próby uruchomienia”. Uruchomiliśmy cały potok na "
+        "3 zbiorach zamiast 30: 174 dopasowania w 0,16 s — pełna seria to 1080 (odtworzenie) + 660 (eksperyment własny) "
+        "+ 180 (etap 3: modele na 100/160/180 obiektach, żeby oddzielić wpływ rozmiaru treningu od losowego podziału) "
+        "= 1920 ≤ 2500. Obliczenia nie są ryzykiem; ryzykiem jest poprawność protokołu.\n"
+        "Z próby NIE wyciągamy wniosków — służy do sprawdzenia kodu i do przykładu ręcznego.\n"
+        "Co zapisujemy (karta: „zachowaj wyniki wszystkich zaplanowanych uruchomień, błędy oraz powody brakujących "
+        "wyników”): CSV per fold z błędem i składem klas, podsumowania per zbiór × model × k, meta.json z wersjami, "
+        "ziarnami, liczbą dopasowań i czasem.\n"
+        "Kontrola poprawności — cztery zasady z karty: (1) duży test wyłącznie do oceny estymatora; (2) te same próbki "
+        "dla wszystkich wariantów CV; (3) wszystko utrwalone przed badaniem w protocol.py; (4) brak przecieku — model "
+        "w foldzie uczy się tylko na pozostałych foldach, T ma osobne ziarno, nie ma doboru hiperparametrów ani "
+        "skalowania, więc nie ma kroku, który mógłby „podejrzeć” dane testowe."
+    ))
 
-    # 11. Ograniczenia, źródła, informacja o AI ---------------------------------------------
-    s = new_slide("Ograniczenia planu, źródła i informacja o AI")
-    add_card(s, L, TOP, 5.6, 4.3)
-    add_text(s, L + 0.2, TOP + 0.15, 5.2, 4.1, [
-        {"text": "Ograniczenia", "bold": True, "size": 16, "color": NAVY, "space_after": 8},
-        {"text": "Dane syntetyczne o rozkładzie zgodnym z założeniami GaussianNB — wyniki dla NB mogą być „zbyt ładne”.", "size": 14, "bullet": True, "space_after": 7},
-        {"text": "Jeden wspólny test T dla wszystkich powtórzeń (słaba korelacja e_test,r; mała przy N = 10 000).", "size": 14, "bullet": True, "space_after": 7},
-        {"text": "R = 30 → błąd standardowy obciążenia ≈ sd/√30 (≈ 0,5 p.p.); małe efekty mogą być nieodróżnialne od zera.", "size": 14, "bullet": True, "space_after": 7},
-        {"text": "U Kohaviego „prawdziwa” trafność z holdoutu i próbki z jednego zbioru też nie są bez wad — nasz test z generatora jest czystszy.", "size": 14, "bullet": True},
+    # 11. Ograniczenia i źródła --------------------------------------------------------------
+    s = new_slide("Ograniczenia planu i źródła")
+    add_card(s, L, TOP, 5.6, 4.0)
+    add_text(s, L + 0.2, TOP + 0.15, 5.2, 3.8, [
+        {"text": "Ograniczenia", "bold": True, "size": 16, "color": NAVY, "space_after": 10},
+        {"text": "Dane „idealne” dla GaussianNB (rozkład zgodny z jego założeniami).", "size": 15, "bullet": True, "space_after": 10},
+        {"text": "Jeden wspólny test T dla wszystkich powtórzeń.", "size": 15, "bullet": True, "space_after": 10},
+        {"text": "R = 30: efekty poniżej ok. 1 p.p. nieodróżnialne od zera.", "size": 15, "bullet": True, "space_after": 10},
+        {"text": "Kohavi: „prawda” z holdoutu; próbki z jednego zbioru; Propozycja 1 zakłada stabilny model.", "size": 15, "bullet": True},
     ])
-    add_card(s, L + 5.9, TOP, 5.6, 4.3, CARD_NAVY)
-    add_text(s, L + 6.1, TOP + 0.15, 5.2, 4.1, [
-        {"text": "Źródła", "bold": True, "size": 16, "color": NAVY, "space_after": 6},
-        {"text": "R. Kohavi, A Study of Cross-Validation and Bootstrap for Accuracy Estimation and Model Selection, IJCAI 1995 — ai.stanford.edu/~ronnyk/accEst.pdf", "size": 13, "bullet": True, "space_after": 5},
-        {"text": "scikit-learn 1.8.0: KFold, StratifiedKFold, GaussianNB, DecisionTreeClassifier", "size": 13, "bullet": True, "space_after": 5},
-        {"text": "Karta tematu 06 i kontrakt przedmiotu (Moodle PO)", "size": 13, "bullet": True, "space_after": 12},
-        {"text": "Informacja o AI (załącznik 2A, wariant 1)", "bold": True, "size": 16, "color": NAVY, "space_after": 6},
-        {"text": "Poziom 2 — AI jako wsparcie pracy. Narzędzie: Claude (Anthropic) w Claude Code — pomoc w analizie publikacji, szkic protokołu i kodu, redakcja slajdów. Kod uruchomiony i sprawdzony przez nas; liczby pochodzą z faktycznych obliczeń. Pełna informacja w załączonym PDF.", "size": 13, "color": INK2},
+    add_card(s, L + 5.9, TOP, 5.6, 4.0, CARD_NAVY)
+    add_text(s, L + 6.1, TOP + 0.15, 5.2, 3.8, [
+        {"text": "Źródła", "bold": True, "size": 16, "color": NAVY, "space_after": 10},
+        {"text": "R. Kohavi, A Study of Cross-Validation and Bootstrap for Accuracy Estimation and Model Selection, IJCAI 1995 — ai.stanford.edu/~ronnyk/accEst.pdf", "size": 14, "bullet": True, "space_after": 10},
+        {"text": "scikit-learn 1.8.0: KFold, StratifiedKFold, GaussianNB, DecisionTreeClassifier", "size": 14, "bullet": True, "space_after": 10},
+        {"text": "Karta tematu 06 i kontrakt przedmiotu (Moodle PO)", "size": 14, "bullet": True, "space_after": 10},
+        {"text": "Kod, protokół i surowe wyniki: github.com/FylyppS/rozpoznawanie-wzorcow", "size": 14, "bullet": True},
     ])
-    add_notes(s, "Praca autora (Kohavi): pytanie, definicje, schemat porównania. Nasz wkład: generator, protokół, kod, eksperyment własny.")
-
-    # 12. Zapas: pytania kontrolne ------------------------------------------------------------
-    s = new_slide("Slajd zapasowy: pytania kontrolne z karty tematu")
-    qa = [
-        ("Dlaczego dziesięć foldów nie daje dziesięciu niezależnych pomiarów?",
-         "Zbiory uczące kolejnych foldów pokrywają się w 8/9; każdy obiekt współtworzy 9 z 10 modeli, więc błędy foldów są skorelowane. Niezależne są dopiero powtórzenia na osobnych zbiorach D_r."),
-        ("Czy niższa wariancja oznacza mniejsze obciążenie?",
-         "Nie. To osobne składowe błędu estymatora (MSE = obciążenie² + wariancja). Bootstrap .632 u Kohaviego: niska wariancja, obciążenie do 9,8 p.p.; leave-one-out: prawie nieobciążone, wysoka wariancja."),
-        ("Czego nie wolno wybierać według dużego testu?",
-         "Parametrów modeli, parametrów generatora ani wariantu CV. Duży test ocenia estymator; każdy wybór „pod” T zamieniłby ocenę referencyjną w zbiór walidacyjny i zaniżył mierzony błąd."),
-    ]
-    for i, (q, a) in enumerate(qa):
-        y = TOP + i * 1.5
-        add_card(s, L, y, W, 1.35, CARD if i % 2 == 0 else CARD_NAVY)
-        add_text(s, L + 0.2, y + 0.08, W - 0.4, 1.25, [
-            {"text": q, "bold": True, "size": 15, "color": NAVY, "space_after": 3},
-            {"text": a, "size": 13.5, "color": INK2},
-        ])
-    add_notes(s, "Slajd na pytania po prezentacji.")
+    add_notes(s, (
+        "CO POWIEDZIEĆ (1 min): Ograniczenia naszego planu: (1) dane syntetyczne o rozkładzie dokładnie zgodnym "
+        "z założeniami GaussianNB — wyniki dla NB mogą być „zbyt ładne”; (2) jeden wspólny test T — wartości e_test "
+        "z różnych zbiorów dzielą ten sam szum testu (ok. 0,4 p.p., pomijalny, ale odnotowany); (3) 30 powtórzeń → błąd "
+        "standardowy obciążenia ≈ sd/√30, przy sd 3 p.p. to ≈ 0,5 p.p., więc obciążenie poniżej 1 p.p. (prawdopodobne "
+        "dla NB) może być nieodróżnialne od zera — to też jest wynik, nie porażka.\n"
+        "Krytycznie o publikacji: „prawdziwa” trafność Kohaviego to też tylko estymata z holdoutu na reszcie zbioru; "
+        "50 próbek z tego samego skończonego zbioru nie jest w pełni niezależnych; jego Propozycja 1 (wariancja CV "
+        "niezależna od k) wymaga stabilnego modelu, a drzewa tego nie spełniają — nasz generator daje prawdziwie "
+        "niezależne zbiory i prawdziwy, duży test.\n"
+        "Źródła: publikacja, dokumentacja scikit-learn, karta tematu i kontrakt. Praca autora vs nasz wkład: od Kohaviego "
+        "pytanie, definicje i schemat porównania; generator, protokół, kod i eksperyment własny są nasze.\n"
+        "Informacja o AI (załącznik 2A) jest osobnym PDF-em dołączonym do zadania w Moodle.\n"
+        "NA PYTANIA — trzy pytania kontrolne z karty: (1) 10 foldów ≠ 10 niezależnych pomiarów, bo zbiory uczące "
+        "pokrywają się w 8/9; (2) niższa wariancja ≠ mniejsze obciążenie (bootstrap .632: mała wariancja, obciążenie "
+        "do 9,8 p.p.); (3) według dużego testu nie wolno dobierać parametrów modeli, generatora ani wariantu CV."
+    ))
 
     out.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(out))
