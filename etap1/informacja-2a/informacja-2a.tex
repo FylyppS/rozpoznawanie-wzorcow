@@ -34,7 +34,7 @@ walidację krzyżową} (slajdy, protokół badania, kod próby uruchomienia w re
 \textbf{Autorzy:} Dariusz Salzburg (103931), Filip Sejud (103928).
 
 \medskip
-W przygotowaniu \textbf{materiałów etapu 1 projektu (slajdów, protokołu badania i kodu próby uruchomienia)}
+W przygotowaniu \textbf{materiałów etapu 1 projektu}
 korzystaliśmy z następujących narzędzi AI:
 
 \textbf{Nazwa narzędzia lub narzędzi:}\\
@@ -42,26 +42,26 @@ Claude (Anthropic) --- asystent generatywny w środowisku programistycznym Claud
 
 \textbf{Cel i zakres wykorzystania:}
 \begin{itemize}
-  \item pomoc w analizie publikacji R.~Kohaviego (IJCAI 1995): streszczenie metodologii i wyników oraz
-    objaśnienie pojęć obciążenia i wariancji estymatora, które następnie opracowaliśmy na slajdach;
-  \item wsparcie w przygotowaniu szkicu protokołu badania: propozycja generatora danych o znanym błędzie
-    Bayesa, schematu ziaren losowych, liczby powtórzeń i wyliczenia budżetu obliczeniowego;
-    decyzje o przyjęciu tych ustaleń oraz hipotezy badawcze są nasze;
-  \item przygotowanie fragmentów implementacji w języku Python (pakiet \texttt{cvbias}, skrypty
-    \texttt{run\_experiment.py} i \texttt{make\_figures.py}) oraz skryptu składającego slajdy;
-  \item redakcja i skład tekstów: slajdów, protokołu badania (\LaTeX) i niniejszej informacji.
+  \item analiza publikacji R.~Kohaviego (IJCAI 1995): streszczenie metodologii i wyników;
+  \item przygotowanie szkicu protokołu badania (generator danych o znanym błędzie Bayesa, schemat
+    ziaren losowych, liczba powtórzeń, budżet obliczeniowy) --- decyzje o przyjęciu tych ustaleń
+    oraz hipotezy badawcze są nasze;
+  \item napisanie kodu eksperymentu w języku Python (pakiet \texttt{cvbias}, skrypty
+    \texttt{run\_experiment.py} i \texttt{make\_figures.py}) oraz wykresów ilustrujących generator danych.
 \end{itemize}
 
 \textbf{Elementy przygotowane lub zmienione z wykorzystaniem AI:}
 \begin{itemize}
-  \item kod źródłowy w repozytorium (generator danych, przebieg eksperymentu, podsumowania, rysunki,
-    skrypt budujący slajdy) --- szkic wygenerowany przez AI, przez nas przeczytany, uruchomiony
-    i sprawdzony (m.in.\ ręczne przeliczenie średniej błędów foldów i błędu Bayesa);
-  \item treść i układ slajdów oraz tekst protokołu badania --- redakcja z pomocą AI na podstawie
-    karty tematu, kontraktu i publikacji; zakres, hipotezy i plan eksperymentu zatwierdziliśmy sami;
-  \item wyniki próby uruchomienia (\texttt{results/pilot}) pochodzą z faktycznie wykonanych obliczeń
-    na naszym komputerze; żadne wartości liczbowe nie zostały wygenerowane przez AI.
+  \item streszczenie i analiza publikacji Kohaviego;
+  \item szkic protokołu badania;
+  \item kod źródłowy w repozytorium (generator danych, przebieg eksperymentu, podsumowania) i rysunki
+    generatora --- przez nas przeczytane, uruchomione i sprawdzone (m.in.\ ręczne przeliczenie średniej
+    błędów foldów i błędu Bayesa).
 \end{itemize}
+
+\textbf{Bez udziału AI} przygotowaliśmy prezentację (treść i układ slajdów) oraz opracowaliśmy
+zrozumienie tematu. Pomiary (uruchomienie próby, \texttt{results/pilot}) wykonaliśmy sami na naszym
+komputerze i sami przeanalizowaliśmy ich wyniki; żadne wartości liczbowe nie zostały wygenerowane przez AI.
 
 Wyniki uzyskane przy użyciu AI zostały przez nas sprawdzone, a za ostateczną treść i poprawność
 przygotowanego materiału ponosimy odpowiedzialność.
