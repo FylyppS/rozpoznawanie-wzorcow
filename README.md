@@ -34,12 +34,14 @@ cvbias/            pakiet z kodem badania
   protocol.py      UTRWALONY PROTOKÓŁ: rozmiary, ziarna, liczba powtórzeń, modele, budżet
   experiment.py    przebieg: CV vs duży test, zapis wyników per fold i podsumowań
   analysis.py      obciążenie/zmienność po powtórzeniach, „rachunek ręczny”
-run_experiment.py  uruchomienie badania (CLI)
-make_figures.py    rysunki do slajdów i raportu
-results/pilot/     surowe wyniki małej próby uruchomienia (3 zbiory) z etapu 1
-docs/sciagawka-obrona.md  ściągawka do nauki i obrony: teoria, publikacja, nasze decyzje, przykłady, pytania
-etap1/             materiały etapu 1: slajdy, protokół, informacja o AI (wzór 2A), rysunki
-requirements.txt   wersje zależności
+run_experiment.py      uruchomienie badania (CLI)
+make_figures.py        rysunki do etapu 1 (generator)
+make_figures_etap2.py  rysunki z wyników: różnice Δ, metoda vs punkt odniesienia, bias/sd vs k, stratyfikacja
+results/pilot/         surowe wyniki małej próby uruchomienia (3 zbiory) z etapu 1
+results/etap2/         surowe wyniki etapu 2: pierwsze 10 z 30 niezależnych zbiorów (580 dopasowań)
+etap1/                 materiały etapu 1: slajdy, protokół, informacja o AI (wzór 2A), rysunki, formatka
+etap2/                 materiały etapu 2: slajdy, notatka z postępów, rysunki
+requirements.txt       wersje zależności
 ```
 
 Każde uruchomienie zapisuje do katalogu wyników: `*_folds.csv` (błąd i skład klas każdego foldu),
@@ -49,23 +51,26 @@ Każde uruchomienie zapisuje do katalogu wyników: `*_folds.csv` (błąd i skła
 ## Uruchomienie
 
 ```bash
-python3 -m venv .venv && . .venv/bin/activate      # fish: . .venv/bin/activate.fish
+python3.14 -m venv .venv && . .venv/bin/activate   # fish: . .venv/bin/activate.fish
 pip install -r requirements.txt
 
 python run_experiment.py --reps 3 --out results/pilot   # mała próba (etap 1): 174 dopasowania, < 1 s
-python run_experiment.py --out results/full             # pełna seria: 30 zbiorów (etapy 2–3)
+python run_experiment.py --reps 10 --out results/etap2  # etap 2: pierwsze 10 zbiorów, 580 dopasowań, ~0,5 s
+python run_experiment.py --out results/full             # pełna seria: 30 zbiorów (etap 3), 1740 dopasowań
 python make_figures.py --out etap1/figures
+python make_figures_etap2.py --results results/etap2 --out etap2/figures
 ```
 
-Slajdy etapu 1 buduje `python etap1/build_slides.py` (python-pptx, formatka wydziału); dokumenty
-w `etap1/` kompiluje się przez `pdflatex`.
+Ziarna zbiorów zależą tylko od numeru powtórzenia `r`, więc wyniki dla pierwszych 10 zbiorów są
+identyczne w `results/etap2` i w pełnej serii. Polecenie `run_experiment.py` wypisuje tabelę
+obciążenia i zmienności oraz rachunek ręczny dla zbioru D₁.
 
 ## Etapy
 
 | Etap | Termin | Materiały | Status |
 |------|--------|-----------|--------|
-| 1 — prezentacja tematu | 2026-10-29 | slajdy, protokół ~1 str., informacja 2A, próba uruchomienia | w przygotowaniu |
-| 2 — wstępne wyniki | ? (wstępnie 2026-12-10) | kod, pierwsze wyniki, wykres `e_cv − e_test`, notatka 1–2 str. | — |
+| 1 — prezentacja tematu | 2026-10-29 | slajdy, protokół ~1 str., informacja 2A, próba uruchomienia | oddany |
+| 2 — wstępne wyniki | ? (wstępnie 2026-12-10) | kod, pierwsze wyniki (`results/etap2`), wykres `e_cv − e_test`, notatka 1–2 str., slajdy | w przygotowaniu |
 | 3 — raport końcowy | ? (wstępnie 2027-01-14) | raport 6–8 str., slajdy, kod, instrukcja, surowe wyniki | — |
 
 ## Wykorzystanie AI
